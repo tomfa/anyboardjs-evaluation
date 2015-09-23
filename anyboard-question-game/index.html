@@ -7,35 +7,188 @@
 	<meta name="viewport" content="width=device-width, user-scalable=no
 		initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0" />
 
-	<title>AnyboardJS Color Detection Demo</title>
+	<title>AnyboardJS Question Game</title>
 
-	<style>
-		@import 'ui/css/evothings-app.css';
+    <link href="style.css" rel="stylesheet" type="text/css">
 
-		p.topic {
-			font-weight: bold;
-		}
-	</style>
-
-	<script>
-	</script>
-
-    <!-- cordova.js based -->
+    <!-- cordova.js based 
 	<script src="cordova.js"></script>
 
     <!-- AnyBoard libraries -->
     <script src="dist/AnyBoard.js"></script>
 
-    <!-- Bluetooth driver and dependencies-->
+    <!-- Bluetooth driver and dependencies
     <script src="libs/evothings/evothings.js"></script>
     <script src="libs/evothings/easyble/easyble.js"></script>
     <script src="drivers/discovery.evothings.bluetooth.js"></script>
-    <script src="drivers/rfduino.evothings.bluetooth.js"></script>
+    <script src="drivers/rfduino.evothings.bluetooth.js"></script>-->
+
+    <script src="libs/jquery-1.11.3.min.js"></script>
 
 	<script>
+    var locations = {
+        // TODO: Check what integers map to which colors
+        1: "yellow", // 18330
+        2: "green", // 4560
+        3: "purple", // 8550
+        4: "blue", // 6306
+        5: "brown", // 5920
+        6: "grey", // 8436
+        7: "red", // 12228
+        8: "black" // 5737
+    }
+    /* 
+        1. A: connect
+        2. A: next phase
+        3: Give instructions: 
+            - Game will start when both pawns are on question tile
+            - Timer will count down from 5 before new question appears
+            - Alternatives will be mapped to tiles
+            - When both have changed location, answer will display. 
+            - Next question will appear when both tokens are placed back on question tile.
+        4. A: next phase
+        5: A: Put both pawns on question tile
+        6: new question appear
+            - load next question in
+            - display next question
+            - 4 alternatives, mapped and shown on each coor
+        7. add token-constraint listeners:
+            - on answermove, check if other is on answertile
+                - if so: check their answers
+                - Give points where need be
+                - Goto 5
+    */
+        $(document).ready(function(){
+            $('.activate-next-panel').click(function(){
+                $(this).parents('.panel').hide();
+                $(this).parents('.panel').next().show();
+                app.trigger($(this).parents('.panel').next()[0].id);
+            });
+            $('.activate-start-panel').click(function(){
+                activatePanel('start');
+            });
+
+            var activatePanel = function(panelName) {
+                $('.panel:visible').hide();
+                $('.panel.panel-' + panelName).show();
+                app.trigger(panelName);  
+            };
+
+            $('.discover-bluetooth').click(function(){
+                app.discover();
+            });
+
+            var initiateGame = function(){
+                questions = shuffle(questions);
+                currentQuestionPos = -1;
+                nextQuestion();
+                for (var index in app.players) {
+                    if (app.players.hasOwnProperty(index))
+                        app.players[index].points = 0;
+                }
+            };
+
+            var finishGame = function(){
+                for (var index in app.players) {
+                    if (app.players.hasOwnProperty(index))
+                        app.players[index].points = 0;
+                }
+            };
+
+            var nextQuestion = function(){
+                currentQuestionPos += 1;
+                if (currentQuestionPos >= questions.length) {
+                    currentQuestionPos = 0;
+                    activatePanel('summary');
+                }
+                else {
+                    var question = questions[currentQuestionPos];
+                    $('.question-wrapper').remove();
+                    var alternativesHTML = "";
+                    var alternatives = shuffle(question.alternatives);
+                    for (var i = 0; i < alternatives.length; i++) {
+                        alternativesHTML += '<p class="alternative ' + locations[i+1] + '">' +
+                                            '    ' + alternatives[i].text +
+                                            '</p>'
+                    }
+                    $('#game').prepend("" + 
+                        '<div class="question-wrapper">' +
+                            '<p class="question-text">' + question.question + '</p>' +
+                            alternativesHTML +
+                        '</div>'
+                    )
+                }
+            };
+
+            var showAnswer = function() {
+                var question = questions[currentQuestionPos];
+                $('.question-wrapper').remove();
+                $('#game').prepend("" + 
+                        '<div class="question-wrapper">' +
+                            '<p class="question-text">' + question.question + '</p>' +
+                            '<p class="answer">Answer: ' + question.answer + '</p>' +
+                            '<p class="game-instruction">Put your tokens back on black question tile when you\'re ready for the next question</p>' +
+                        '</div>'
+                    )
+            };
+
+            $('.activate-question').click(nextQuestion);
+            $('.activate-answer').click(showAnswer);
+
+            AnyBoard.TokenManager.onTokenConstraintEvent("MOVE")
+
+            app.addListener("game", initiateGame);
+            app.addListener("summary", finishGame);
+        });
+
+        function shuffle(o){
+            for(var j, x, i = o.length; i; j = Math.floor(Math.random() * i), x = o[--i], o[i] = o[j], o[j] = x);
+            return o;
+        }
+
+        var currentQuestionPos;
+        var questions = [
+            { 
+                "question": "Who was the first president of USA?",
+                "alternatives": [
+                    {"id": 1, "text": "Abraham Lincoln", "correct": true },
+                    {"id": 2, "text": "George Washington", "correct": true },
+                    {"id": 3, "text": "Simone Mora", "correct": false },
+                    {"id": 4, "text": "Monica Divitini", "correct": false },
+                ],
+                "answer": "George Washington bla bla bla bla"
+            },
+            { 
+                "question": "From which country comes Samsung?",
+                "alternatives": [
+                    {"id": 1, "text": "Japan", "correct": true },
+                    {"id": 2, "text": "China", "correct": false },
+                    {"id": 3, "text": "South Korea", "correct": false },
+                    {"id": 4, "text": "Nepal", "correct": false },
+                ],
+                "answer": "Japan bla bla bla bla"
+            }
+        ];
+
         var app = {
 		    devices: {},
-            hasSubscribed: false,
+            listeners: {},
+            players: [],
+            colors: ['green', 'red', 'blue', 'white'], // Player colors
+
+            addListener: function(name, callback) {
+                if (!this.listeners[name])
+                    this.listeners[name] = [];
+                this.listeners[name].push(callback);
+            },
+
+            trigger: function(name, options) {
+                if (this.listeners[name]) {
+                    for (var i = this.listeners[name].length - 1; i >= 0; i--) {
+                        this.listeners[name][i](options);
+                    }
+                }
+            }, 
 
             // Discover bluetooth tokens in proximity
             discover: function() {
@@ -52,49 +205,57 @@
                 );
             },
 
+            next: function(panelName) {
+                $(this).parents('.panel').hide();
+                $('.panel.' + panelName).show();
+            },
+
             // Function to be executed upon having discovered a token
             addDiscovered: function(token) {
-                if (!this.devices[token.name]) {
-                    this.devices[token.name] = token;
+                if (!this.devices[token.address]) {
+                    this.devices[token.address] = token;
 
                     // Add button for token to body
-                    document.body.innerHTML += '<button type="button" id="' + token.name + '" onclick="app.connect(' + "'" + token.name + "'" + ')" class="grey">' + token.name + ' </button><br />';
+                    $('.discover-bluetooth').after('<button type="button" id="' + token.address +
+                            '" onclick="app.connect(' + "'" + token.address + "'" + 
+                            ')" class="grey token">' + token.name + ' </button><br />'); 
 
                     // Add listener to be executed if the token connects
                     token.on('connect', function() {
-                        document.getElementById(token.name).className = 'green';})
+                        document.getElementById(token.address).className = 'green';
+                        token.color = this.colors.pop();
+                        token.player = new AnyBoard.Player(
+                                players.length, {
+                                    "color": token.color,
+                                    "points": 0
+                                }
+                        );
+                        $('#' + token.address).after('<span class="player-icon ' + token.color + '"></span>');
+                    });
 
                     // Add listener to be executed if the token disconnects
                     token.on('disconnect', function() {
-                        document.getElementById(token.name).className = 'red';
+                        document.getElementById(token.address).className = 'grey';
                     })
                 }
 
             },
 
             // Attempts to connect to token.
-            connect: function(tokenName) {
-                var token = this.devices[tokenName];
+            connect: function(tokenAddress) {
+                var token = this.devices[tokenAddress];
 
                 // If already connecting, stop
-                if (document.getElementById(tokenName).className == 'blue')
+                if (document.getElementById(tokenAddress).className == 'blue')
                     return;
 
-                // If already connected, attempt to send green led command
-                if (document.getElementById(tokenName).className == 'green') {
-                    if (!this.hasSubscribed) {
-
-                        // Add listener to be executed if the token signals a move
-                        token.on('MOVE', function(token, options){
-                            hyper.log('Moved from ' + options.oldTile);
-                            hyper.log('Moved to ' + options.newTile);
-                        });
-                        this.hasSubscribed = true;
-                    }
+                // If already connected, disconnect
+                if (document.getElementById(tokenAddress).className == 'green') {
+                    app.disconnect(tokenAddress);
                     return;
                 }
                 // Signal that we're attempting to connect
-                document.getElementById(tokenName).className = 'blue';
+                document.getElementById(tokenAddress).className = 'blue';
 
                 // Send connect command. 
                 token.connect();
@@ -105,25 +266,106 @@
 </head>
 
 <body ontouchstart="">
-	<h1>AnyboardJS Subscribe Demo</h1>
-    <div>
-        <p>
-            Demo of AnyToken library intended for rfduino, displaying the color reading in action.
-        </p>
-        <p>
-            Click on the black button to discover devices. Devices will pop up as new grey buttons with their name on it.
-            Click the name button to attempt to connect. It will turn <em>blue</em> to signal connection is pending, and <em>green</em> when connected. (<em>Red</em> signals it being/having disconnected.)
-        </p>
-        <p>
-            Click a rfduino with updated firmware (irmware/RFduino.ino) in order to subscribe to its 'MOVE' events. Logging using hyper.log shows previous and current color id when changed.
-        </p>
-	</div>
+	<h5 class="center">AnyboardJS Quiz Game</h5>
+    <div class="panel panel-start" id="start">
+        <div>
+            <h4>AnyBoard Quiz Game</h4>
+            <p class="help-text">
+                Hi, and welcome to the AnyBoardJS Quiz Game!
+            </p>
+            <img src="img/splash.jpg" class="splash">
+            <p class="help-text">
+                To start playing, click next.
+            </p>
+    	</div>
 
-	<button type="button" class="black" onclick="app.discover()">
-		Discover Bluetooth devices
-	</button>
+        <div class="footer">
+            <button type="button" class="activate-next-panel next-button">
+                Next
+            </button>
+    </div>
+    </div>
+    <div class="panel panel-setup" id="setup">
+        <div>
+            <h4>Step 1</h4>
+            <p class="help-text">
+                To start playing: 
+                <ol>
+                    <li>Turn on your AnyBoard Tokens</li>
+                    <li>Discover the tokens by clicking the discover button below</li>
+                    <li>Click to connect to the tokens</li>
+                    <li>Click next</li>
+                </ol>
+            </p>
+        </div>
 
-	<br />
+        <button type="button" class="discover-bluetooth center">
+            Discover Bluetooth devices
+        </button>
+
+        <div class="footer">
+            <button type="button" class="activate-next-panel next-button">
+                Next
+            </button>
+        </div>
+    </div>    
+    <div class="panel panel-instruction" id="instruction">
+        <div>
+            <h4>Step 2</h4>
+            <p class="help-text">
+                How the game works:
+                <ol>
+                    <li>Question appears</li>
+                    <li>Place your token on the corresponding alternative</li>
+                    <li>Answer will be displayed when both tokens have been placed on a tile</li>
+                    <ul>
+                        <li>The players with correct answer will be awarded point</li>
+                    </ul>
+                    <li>Place both tokens back on question tile for a new question</li>
+                    <li>First player to 10 points win</li>
+                </ol>
+            </p>
+        </div>
+        <div class="footer">
+            <button type="button" class="activate-next-panel next-button">
+                Got it!
+            </button>
+        </div>
+    </div>
+    <div class="panel panel-game-init" id="game-init">
+        <div>
+            <p class="help-text">
+                Put your tokens on the <button class="black center">black tile</button>.
+                The game will then start automatically.
+            </p>
+        </div>
+        <div class="footer trigger-footer">
+            <button type="button" class="activate-next-panel next-button">
+                trigger
+            </button>
+        </div>
+    </div>
+    <div class="panel panel-game" id="game">
+        <div class="footer question-footer">
+            <button type="button" class="activate-question next-button">
+                Next Question
+            </button>
+            <button type="button" class="activate-answer next-button">
+                See answer
+            </button>
+            <button type="button" class="activate-start-panel next-button">
+                Stop playing
+            </button>
+        </div>
+    </div>
+    <div class="panel panel-summary" id="summary">
+        Summaries
+        <div class="footer question-footer">
+            <button type="button" class="activate-start-panel next-button">
+                Play again
+            </button>
+        </div>
+    </div>
 
 </body>
 
