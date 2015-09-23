@@ -210,7 +210,7 @@
                 else
                 {
                     device.gettingServices = false;
-                    AnyBoard.Logger.error('Could not find predefined services for token:' + device.name, self);
+                    AnyBoard.Logger.error('Could not find predefined services for token: ' + device.name, self);
                     fail && fail('Services not found!');
                 }
             },
