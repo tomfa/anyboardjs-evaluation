@@ -12,11 +12,11 @@
     <link href="style.css" rel="stylesheet" type="text/css">
 
     <!-- cordova.js based -->
-	<!--<script src="cordova.js"></script>-->
+	<script src="cordova.js"></script>
 
     <!-- Bluetooth driver and dependencies -->
-    <!--<script src="libs/evothings/evothings.js"></script>-->
-    <!--<script src="libs/evothings/easyble/easyble.js"></script>-->
+    <script src="libs/evothings/evothings.js"></script>
+    <script src="libs/evothings/easyble/easyble.js"></script>
 
     <script src="libs/jquery-1.11.3.min.js"></script>
 
@@ -118,10 +118,14 @@
             $('.activate-answer').click(showAnswer);
 
             var handleTokenMove = function(token, constraint, options) {
+
+                // TODO: Bruk hyper og kommenter
                 AnyBoard.Logger.log(token.player + " moved to tile " + constraint);
                 token.player.location = constraint;
 
                 var everyOneHasAnswered = true;
+
+                // TODO: iterer over player-objekt
                 for (var key in AnyBoard.TokenManager.tokens) {
                     if (AnyBoard.TokenManager.tokens[key].player.location < 3) {
                         everyOneHasAnswered = false;
@@ -139,6 +143,7 @@
                 }
             };
 
+            // TODO: Håndter såher
             AnyBoard.TokenManager.onTokenConstraintEvent("MOVE_TO", handleTokenMove);
             AnyBoard.TokenManager.onTokenTokenEvent("MOVE_NEXT_TO", handleTokenTokenTouch)
 
@@ -198,6 +203,9 @@
             // Discover bluetooth tokens in proximity
             discover: function() {
                 var self = this;
+                // TODO: Lag et driver-erstatningsobjekt
+                // TODO: Scan og opprett et Token-objekt
+                // TODO: Send token-objekt til addDiscovered
                 AnyBoard.TokenManager.scan(
                     // success function to be executed upon _each_ token that is discovered
                     function(token) {
@@ -231,6 +239,7 @@
                         document.getElementById(token.address).className = 'green token';
                         token.color = app.colors.pop();
 
+                        // TODO: En player representasjon
                         token.player = new AnyBoard.Player(
                             ""+ app.players.length,
                             {
@@ -243,10 +252,12 @@
                         app.players.push(token.player);
                         $(document.getElementById(token.address)).next().addClass(token.color);
 
+                        // TODO: Anta samme firmware
                         token.ledOn(token.color);
                     });
 
 
+                    // TODO: En disconnect-lytt
                     token.on('disconnect', function() {
                         document.getElementById(token.address).className = 'grey token';
                         $('#' + token.address).next().removeClass(token.color);
@@ -256,6 +267,7 @@
 
             },
 
+            // TODO: En connect-lytt
             connect: function(tokenAddress) {
                 var token = this.devices[tokenAddress];
 
