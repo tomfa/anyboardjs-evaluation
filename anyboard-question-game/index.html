@@ -106,9 +106,11 @@
                 var question = questions[currentQuestionPos];
                 for (var key in app.players) {
                     var player = app.players[key];
-                    var answer = app.players[key].location;
-                    if (question.alternatives[answer].correct)
-                        player.points += 1;
+                    var answer = player.location;
+                    if (question.alternatives.hasOwnProperty(answer-2)) {
+                        if (question.alternatives[answer-2].correct)
+                            player.points += 1;
+                    }
                 }
                 $('.question-wrapper').remove();
                 $('#game').prepend("" + 
@@ -129,19 +131,35 @@
 
                 var everyOneHasAnswered = true;
                 for (var key in AnyBoard.TokenManager.tokens) {
-                    if (AnyBoard.TokenManager.tokens[key].player.location < 3) {
-                        everyOneHasAnswered = false;
-                        break;
+                    if (AnyBoard.TokenManager.tokens.hasOwnProperty(key) && AnyBoard.TokenManager.tokens[key].isConnected()) {
+                        if (AnyBoard.TokenManager.tokens[key].player.location < 3) {
+                            everyOneHasAnswered = false;
+                            break;
+                        }
                     }
                 }
-                if (everyOneHasAnswered) {
+                if (everyOneHasAnswered && token.player.location > 2) {
                     showAnswer();
+                    return;
+                }
+
+                // If the token is the only one, we will not expect any Token-Token events to occur before all (1) token
+                // is placed on a tile. Therefore we check if the token is the only one, and trigger the TT-event manually
+                // if it is
+                var numOfConnected = 0;
+                for (var key in AnyBoard.TokenManager.tokens) {
+                    if (AnyBoard.TokenManager.tokens[key].isConnected()) numOfConnected += 1;
+                }
+                if (numOfConnected === 1 && token.player.location === 2) {
+                    if (!currentQuestionPos) activatePanel('game');
+                    else nextQuestion();
                 }
             };
 
             var handleTokenTokenTouch = function(initiatingToken, respondingToken, options) {
-                if (respondingToken.player.location == 2) {
-                    nextQuestion();
+                if (respondingToken.player.location === 2) {
+                    if (!currentQuestionPos) initiateGame();
+                    else nextQuestion();
                 }
             };
 
@@ -358,20 +376,9 @@
                 The game will then start automatically.
             </p>
         </div>
-        <div class="footer trigger-footer">
-            <button type="button" class="activate-next-panel next-button">
-                trigger
-            </button>
-        </div>
     </div>
     <div class="panel panel-game" id="game">
         <div class="footer question-footer">
-            <button type="button" class="activate-question next-button">
-                trigger (q)
-            </button>
-            <button type="button" class="activate-answer next-button">
-                trigger (a)
-            </button>
             <button type="button" class="activate-start-panel next-button">
                 Stop playing
             </button>
