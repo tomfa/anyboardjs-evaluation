@@ -134,9 +134,8 @@ var logic = {
     },
 
     _evothingsConnect: function(device) {
-        var requiredCharacteristic = 'a495ff11-c5b1-4b44-b512-1370f02d74de';
-        var requiredService = 'a495ff10-c5b1-4b44-b512-1370f02d74de';
-        var requiredDescriptor = '00002902-0000-1000-8000-00805f9b34fb';
+        var requiredCharacteristic = '00002222-0000-1000-8000-00805f9b34fb';
+        var requiredService = '00002220-0000-1000-8000-00805f9b34fb';
 
         device.connect(function() {
             getServices();
@@ -175,13 +174,11 @@ var logic = {
 
                             hyper.log('Characteristic: ' + characteristic.uuid);
                             device.characteristics[characteristic.uuid] = characteristic;
-
+                            device.serialChar = characteristic.handle;
+                            
                             for (var di in characteristic.descriptors) {
                                 var descriptor = characteristic.descriptors[di];
-                                if (descriptor.uuid !== requiredDescriptor)
-                                    continue;
                                 device.descriptors[descriptor.uuid] = descriptor;
-                                device.serialChar = characteristic.handle;
                                 device.serialDesc = descriptor.handle;
                             }
                         }
@@ -218,7 +215,7 @@ var logic = {
 
         evothings.ble.enableNotification(
             device.deviceHandle,
-            device.serialChar,
+            device.characteristics[notificationCharacteristic].handle,
             function(data){
                 data = new DataView(data);
                 var length = data.byteLength;
