@@ -15,289 +15,27 @@
 	<script src="cordova.js"></script>
 
     <!-- AnyBoard libraries -->
-    <script src="dist/AnyBoard.js"></script>
+    <script src="dist/anyboard.js"></script>
 
     <!-- Bluetooth driver and dependencies -->
     <script src="libs/evothings/evothings.js"></script>
     <script src="libs/evothings/easyble/easyble.js"></script>
     <script src="drivers/discovery.evothings.bluetooth.js"></script>
-    <script src="drivers/bean.evothings.bluetooth.js"></script>
     <script src="drivers/rfduino.evothings.bluetooth.js"></script>
 
+    <!-- We've used jquery for quick development -->
     <script src="libs/jquery-1.11.3.min.js"></script>
 
+    <!-- Game files -->
+    <script src="js/data.js"></script>
+    <script src="js/logic.js"></script>
+    <script src="js/ui.js"></script>
+
 	<script>
-        var locations = {
-            1: "red", // 12228
-            2: "black", // 5737
-            3: "yellow", // 18330
-            4: "green", // 4560
-            5: "purple", // 8550
-            6: "blue", // 6306
-            7: "brown", // 5920
-            8: "grey" // 8436
-        };
         $(document).ready(function(){
-            $('.activate-next-panel').click(function(){
-                $(this).parents('.panel').hide();
-                $(this).parents('.panel').next().show();
-                app.trigger($(this).parents('.panel').next()[0].id);
-            });
-            $('.activate-start-panel').click(function(){
-                activatePanel('start');
-            });
-
-            var activatePanel = function(panelName) {
-                $('.panel:visible').hide();
-                $('.panel.panel-' + panelName).show();
-                app.trigger(panelName);  
-            };
-
-            $('.discover-bluetooth').click(function(){
-                app.discover();
-            });
-
-            var initiateGame = function(){
-                questions = shuffle(questions);
-                currentQuestionPos = -1;
-                nextQuestion();
-                for (var index in app.players) {
-                    if (app.players.hasOwnProperty(index))
-                        app.players[index].points = 0;
-                }
-            };
-
-            var finishGame = function(){
-                $('#summary').prepend('<h4>You did it!</h4>')
-                var playersHTML = ""
-                for (var index in app.players) {
-                    playersHTML += '<div class="result"><button class="player-icon ' + app.players[index].color +
-                        '">&nbsp;</button>' + app.players[index].points + ' poeng</div>';
-                }
-                $('#summary').append(playersHTML)
-            };
-
-            var nextQuestion = function(){
-                currentQuestionPos += 1;
-                if (currentQuestionPos >= questions.length) {
-                    currentQuestionPos = 0;
-                    activatePanel('summary');
-                }
-                else {
-                    var question = questions[currentQuestionPos];
-                    $('.question-wrapper').remove();
-                    var alternativesHTML = "";
-                    var alternatives = question.alternatives;
-                    for (var i = 0; i < alternatives.length; i++) {
-                        alternativesHTML += '<p class="alternative ' + locations[i+3] + '">' +
-                                            '    ' + alternatives[i].text +
-                                            '</p>'
-                    }
-                    $('#game').prepend("" + 
-                        '<div class="question-wrapper">' +
-                            '<p class="question-text">' + question.question + '</p>' +
-                            alternativesHTML +
-                        '</div>'
-                    )
-                }
-            };
-
-            var showAnswer = function() {
-                var question = questions[currentQuestionPos];
-                for (var key in app.players) {
-                    var player = app.players[key];
-                    var answer = player.location;
-                    if (question.alternatives.hasOwnProperty(answer-2)) {
-                        if (question.alternatives[answer-2].correct)
-                            player.points += 1;
-                    }
-                }
-                $('.question-wrapper').remove();
-                $('#game').prepend("" + 
-                    '<div class="question-wrapper">' +
-                        '<p class="question-text">' + question.question + '</p>' +
-                        '<p class="answer">Answer: ' + question.answer + '</p>' +
-                        '<p class="game-instruction">Put your tokens back on black question tile when you\'re ready for the next question</p>' +
-                    '</div>'
-                )
-            };
-
-            $('.activate-question').click(nextQuestion);
-            $('.activate-answer').click(showAnswer);
-
-            var handleTokenMove = function(token, constraint, options) {
-                AnyBoard.Logger.log(token.player + " moved to tile " + constraint);
-                token.player.location = constraint;
-
-                var everyOneHasAnswered = true;
-                for (var key in AnyBoard.TokenManager.tokens) {
-                    if (AnyBoard.TokenManager.tokens.hasOwnProperty(key) && AnyBoard.TokenManager.tokens[key].isConnected()) {
-                        if (AnyBoard.TokenManager.tokens[key].player.location < 3) {
-                            everyOneHasAnswered = false;
-                            break;
-                        }
-                    }
-                }
-                if (everyOneHasAnswered && token.player.location > 2) {
-                    showAnswer();
-                    return;
-                }
-
-                // If the token is the only one, we will not expect any Token-Token events to occur before all (1) token
-                // is placed on a tile. Therefore we check if the token is the only one, and trigger the TT-event manually
-                // if it is
-                var numOfConnected = 0;
-                for (var key in AnyBoard.TokenManager.tokens) {
-                    if (AnyBoard.TokenManager.tokens[key].isConnected()) numOfConnected += 1;
-                }
-                if (numOfConnected === 1 && token.player.location === 2) {
-                    if (!currentQuestionPos) activatePanel('game');
-                    else nextQuestion();
-                }
-            };
-
-            var handleTokenTokenTouch = function(initiatingToken, respondingToken, options) {
-                if (respondingToken.player.location === 2) {
-                    if (!currentQuestionPos) initiateGame();
-                    else nextQuestion();
-                }
-            };
-
-            AnyBoard.TokenManager.onTokenConstraintEvent("MOVE_TO", handleTokenMove);
-            AnyBoard.TokenManager.onTokenTokenEvent("MOVE_NEXT_TO", handleTokenTokenTouch)
-
-            app.addListener("game", initiateGame);
-            app.addListener("summary", finishGame);
+            ui.initiate();
+            logic.initiate();
         });
-
-        function shuffle(o){
-            for(var j, x, i = o.length; i; j = Math.floor(Math.random() * i), x = o[--i], o[i] = o[j], o[j] = x);
-            return o;
-        }
-
-        var currentQuestionPos;
-        var questions = [
-            { 
-                "question": "Who was the first president of USA?",
-                "alternatives": [
-                    {"text": "Abraham Lincoln", "correct": true },
-                    {"text": "George Washington", "correct": true },
-                    {"text": "Simone Mora", "correct": false },
-                    {"text": "Monica Divitini", "correct": false },
-                ],
-                "answer": "George Washington bla bla bla bla"
-            },
-            { 
-                "question": "From which country comes Samsung?",
-                "alternatives": [
-                    {"text": "Japan", "correct": true },
-                    {"text": "China", "correct": false },
-                    {"text": "South Korea", "correct": false },
-                    {"text": "Nepal", "correct": false },
-                ],
-                "answer": "Japan bla bla bla bla"
-            }
-        ];
-
-        var app = {
-		    devices: {},
-            listeners: {},
-            players: [],
-            colors: ['white', 'green', 'red', 'blue'], // Player colors
-
-            addListener: function(name, callback) {
-                if (!this.listeners[name])
-                    this.listeners[name] = [];
-                this.listeners[name].push(callback);
-            },
-
-            trigger: function(name, options) {
-                if (this.listeners[name]) {
-                    for (var i = this.listeners[name].length - 1; i >= 0; i--) {
-                        this.listeners[name][i](options);
-                    }
-                }
-            }, 
-
-            // Discover bluetooth tokens in proximity
-            discover: function() {
-                var self = this;
-                AnyBoard.TokenManager.scan(
-                    // success function to be executed upon _each_ token that is discovered
-                    function(token) {
-                        self.addDiscovered(token);
-                    },
-                    // function to be executed upon failure
-                    function(errorCode) {
-                        hyper.log(errorCode)
-                    }
-                );
-            },
-
-            next: function(panelName) {
-                $(this).parents('.panel').hide();
-                $('.panel.' + panelName).show();
-            },
-
-            // Function to be executed upon having discovered a token
-            addDiscovered: function(token) {
-                if (!this.devices[token.address]) {
-                    this.devices[token.address] = token;
-
-                    // Add button for token to body
-                    $('#setup').append('<div class="token center"><button type="button" id="' + token.address +
-                            '" onclick="app.connect(' + "'" + token.address + "'" + 
-                            ')" class="grey token">' + token.name + ' </button>' +
-                            '<button class="player-icon' + '">&nbsp;</button>' + '</div>');
-
-                    // Add listener to be executed if the token connects
-                    token.on('connect', function() {
-                        document.getElementById(token.address).className = 'green token';
-                        token.color = app.colors.pop();
-                        token.player = new AnyBoard.Player(
-                            ""+ app.players.length,
-                            {
-                                "color": token.color,
-                                "points": 0,
-                                "locations": -1,
-                                "token": token
-                            }
-                        );
-                        app.players.push(token.player);
-                        $(document.getElementById(token.address)).next().addClass(token.color);
-                        token.ledOn(token.color);
-                    });
-
-                    // Add listener to be executed if the token disconnects
-                    token.on('disconnect', function() {
-                        document.getElementById(token.address).className = 'grey token';
-                        $('#' + token.address).next().removeClass(token.color);
-                        app.colors.push(token.color);
-                    })
-                }
-
-            },
-
-            // Attempts to connect to token.
-            connect: function(tokenAddress) {
-                var token = this.devices[tokenAddress];
-
-                // If already connecting, stop
-                if (document.getElementById(tokenAddress).className.indexOf('blue') !== -1)
-                    return;
-
-                // If already connected, disconnect
-                if (document.getElementById(tokenAddress).className.indexOf('green') !== -1) {
-                    token.disconnect();
-                    return;
-                }
-                // Signal that we're attempting to connect
-                document.getElementById(tokenAddress).className = 'blue token';
-
-                // Send connect command. 
-                token.connect();
-            }
-	    };
 	</script>
 
 </head>
@@ -355,9 +93,11 @@
                     <li>Question appears</li>
                     <li>Place your token on the corresponding alternative</li>
                     <li>Answer will be displayed when both tokens have been placed on a tile</li>
-                    <ul>
-                        <li>The players with correct answer will be awarded point</li>
-                    </ul>
+                    <li>
+                        <ul>
+                            <li>The players with correct answer will be awarded point</li>
+                        </ul>
+                    </li>
                     <li>Place both tokens back on question tile for a new question</li>
                     <li>First player to 10 points win</li>
                 </ol>
@@ -379,14 +119,15 @@
     </div>
     <div class="panel panel-game" id="game">
         <div class="footer question-footer">
-            <button type="button" class="activate-start-panel next-button">
+            <button type="button" class="activate-next-panel next-button">
                 Stop playing
             </button>
         </div>
     </div>
     <div class="panel panel-summary" id="summary">
+        <div class="content"></div>
         <div class="footer question-footer">
-            <button type="button" class="activate-start-panel next-button">
+            <button type="button" class="init-game next-button">
                 Play again
             </button>
         </div>
